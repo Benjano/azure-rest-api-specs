@@ -2134,6 +2134,57 @@
         }
       }
     },
+    "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{operationalInsightsResourceProvider}/workspaces/{workspaceName}/providers/Microsoft.SecurityInsights/entities/{entityId}/queries": {
+      "get": {
+        "x-ms-examples": {
+          "Get entity queries": {
+            "$ref": "./examples/entities/queries/GetQueriesEntity.json"
+          }
+        },
+        "tags": [
+          "Entities"
+        ],
+        "description": "Get entity queries.",
+        "operationId": "Entities_queries_list",
+        "parameters": [
+          {
+            "$ref": "#/parameters/ApiVersion"
+          },
+          {
+            "$ref": "#/parameters/SubscriptionId"
+          },
+          {
+            "$ref": "#/parameters/ResourceGroupName"
+          },
+          {
+            "$ref": "#/parameters/OperationalInsightsResourceProvider"
+          },
+          {
+            "$ref": "#/parameters/WorkspaceName"
+          },
+          {
+            "$ref": "#/parameters/EntityId"
+          },
+          {
+            "$ref": "#/parameters/kind"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/PopulatedEntityQueryList"
+            }
+          },
+          "default": {
+            "description": "Error response describing why the operation failed.",
+            "schema": {
+              "$ref": "#/definitions/CloudError"
+            }
+          }
+        }
+      }
+    },
     "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/{operationalInsightsResourceProvider}/workspaces/{workspaceName}/providers/Microsoft.SecurityInsights/entities/{entityId}/relations": {
       "get": {
         "x-ms-examples": {
@@ -5393,6 +5444,262 @@
       "required": [
         "value"
       ]
+    },
+    "EntityQueryKind": {
+      "description": "Describes an Azure resource with kind.",
+      "properties": {
+        "kind": {
+          "description": "The kind of the entity query.",
+          "enum": [
+            "Insights"
+          ],
+          "type": "string",
+          "x-ms-enum": {
+            "modelAsString": true,
+            "name": "EntityQueryKind",
+            "values": [
+              {
+                "value": "Insights"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "PopulatedEntityQuery": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/Resource"
+        },
+        {
+          "$ref": "#/definitions/EntityQueryKind"
+        }
+      ],
+      "description": "Specific entity query.",
+      "discriminator": "kind",
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "PopulatedEntityQueryProperties": {
+      "description": "Describes entity populated query properties",
+      "properties": {
+        "displayName": {
+          "description": "The entity query display name",
+          "type": "string"
+        },
+        "description": {
+          "description": "The description of the entity query. Markdown supported.",
+          "type": "string"
+        },
+        "provider": {
+          "description": "The provider of the entity query.",
+          "type": "string"
+        },
+        "type": {
+          "description": "The type of the insight.",
+          "enum":["KQL"],
+          "type": "string"
+        },
+        "defaultTimeRange": {
+          "description": "Default time range to run the entity query on.",
+          "properties": {
+            "beforeRange": {
+              "description": "For example: 7d, 30m, 8h etc...",
+              "type": "string"
+            },
+            "afterRange": {
+              "description": "For example: 7d, 30m, 8h etc...",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "baseQuery": {
+          "description": "Base query that will be prepended to other queries within the entity query.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "InsightsEntityQuery": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PopulatedEntityQuery"
+        }
+      ],
+      "description": "Represents Insights entity query.",
+      "properties": {
+        "properties": {
+          "$ref": "#/definitions/InsightsEntiyQueryProperties",
+          "description": "Insights entity query properties.",
+          "x-ms-client-flatten": true
+        }
+      },
+      "x-ms-discriminator-value": "Insights",
+      "type": "object"
+    },
+    "InsightsEntiyQueryProperties": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/PopulatedEntityQueryProperties"
+        }
+      ],
+      "description": "Describes insight entity query properties",
+      "properties": {
+        "tableQuery": {
+          "description": "Describe a collection of observations of the insight.",
+          "properties": {
+            "columnsDefinitions": {
+              "description": "Describe the table columns.",
+              "items": {
+                "description": "Column definition.",
+                "properties": {
+                  "header": {
+                    "description": "The title of the column.",
+                    "type": "string"
+                  },
+                  "outputType": {
+                    "description": "Describe the output type of the column.",
+                    "type": "string"
+                  },
+                  "supportDeepLink": {
+                    "description": "Describe whether deep link is supported or not.",
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "queriesDefinitions": {
+              "description": "Describe a query to run in order to fetch the insight results.",
+              "items": {
+                "description": "Query definition.",
+                "properties": {
+                  "filter": {
+                    "description": "The filter of the query.",
+                    "type": "string"
+                  },
+                  "summarize": {
+                    "description": "The summarize of the query",
+                    "type": "string"
+                  },
+                  "project": {
+                    "description": "The projection of the query",
+                    "type": "string"
+                  },
+                  "linkColumnsDefinitions": {
+                    "description": "Describe how to perform deep links of the query results.",
+                    "items": {
+                      "description": "Link definition",
+                      "properties": {
+                        "projectedName": {
+                          "description": "The name of the column to link.",
+                          "type": "string"
+                        },
+                        "query": {
+                          "description": "The query to run to view the deep link results.",
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "chartQuery": {
+          "description": "Describe a collection of datasets of the insight.",
+          "properties": {
+            "title": {
+              "description": "The title of the chart.",
+              "type": "string"
+            },
+            "type": {
+              "description": "The title of the chart.",
+              "enum": [
+                "BarChart",
+                "LineChart"
+              ],
+              "type": "string",
+              "x-ms-enum": {
+                "modelAsString": true,
+                "name": "BarChart"
+              }
+            },
+            "dataSets": {
+              "description": "Describe the chart dataserts.",
+              "items": {
+                "description": "Dataset",
+                "properties": {
+                  "query": {
+                    "description": "The query of the dataset.",
+                    "type": "string"
+                  },
+                  "xColumnName": {
+                    "description": "The x-axis column name.",
+                    "type": "string"
+                  },
+                  "yColumnName": {
+                    "description": "The y-axis column name.",
+                    "type": "string"
+                  },
+                  "legendColumnName": {
+                    "description": "The legend column name.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "additionalQuery": {
+          "description": "Describe a additional query to view additional results.",
+          "properties": {
+            "text": {
+              "description": "The name of the additional query.",
+              "type": "string"
+            },
+            "query": {
+              "description": "The query to run.",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "PopulatedEntityQueryList": {
+      "description": "List of populated the entity queries.",
+      "properties": {
+        "value": {
+          "description": "Array of entity queries.",
+          "items": {
+            "$ref": "#/definitions/PopulatedEntityQuery"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "type": "object"
     },
     "EntityQuery": {
       "allOf": [
@@ -8696,6 +9003,14 @@
       "maxLength": 90,
       "minLength": 1,
       "name": "workspaceName",
+      "required": true,
+      "type": "string",
+      "x-ms-parameter-location": "method"
+    },
+    "kind": {
+      "description": "The resource kind to filter on.",
+      "in": "query",
+      "name": "kind",
       "required": true,
       "type": "string",
       "x-ms-parameter-location": "method"

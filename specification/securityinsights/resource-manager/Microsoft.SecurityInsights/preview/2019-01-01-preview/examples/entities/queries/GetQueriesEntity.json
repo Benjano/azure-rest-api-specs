@@ -1,0 +1,175 @@
+{
+    "parameters": {
+        "api-version": "2019-01-01-preview",
+        "subscriptionId": "d0cfe6b2-9ac0-4464-9919-dccaee2e48c0",
+        "resourceGroupName": "myRg",
+        "workspaceName": "myWorkspace",
+        "operationalInsightsResourceProvider": "Microsoft.OperationalIinsights",
+        "entityId": "e1d3d618-e11f-478b-98e3-bb381539a8e1",
+        "kind": "Insights"
+    },
+    "responses": {
+        "200": {
+            "body": {
+                "value": [
+                    {
+                        "id": "/subscriptions/bd794837-4d29-4647-9105-6339bfdb4e6a/resourceGroups/mms-eus/providers/Microsoft.OperationalInsights/workspaces/avdvirint/providers/Microsoft.SecurityInsights/queries/78a0936c-10a8-4a7b-bb22-ac11f8eb90b7",
+                        "name": "78a0936c-10a8-4a7b-bb22-ac11f8eb90b7",
+                        "type": "Microsoft.SecurityInsights/queries",
+                        "kind": "Insights",
+                        "properties": {
+                            "tableQuery": {
+                                "columnsDefinitions": [
+                                    {
+                                        "header": "Account Actions",
+                                        "outputType": "String",
+                                        "supportDeepLink": false
+                                    },
+                                    {
+                                        "header": "Most recent",
+                                        "outputType": "Date",
+                                        "supportDeepLink": false
+                                    },
+                                    {
+                                        "header": "Count",
+                                        "outputType": "Number",
+                                        "supportDeepLink": false
+                                    }
+                                ],
+                                "queriesDefinitions": [
+                                    {
+                                        "filter": "where OperationName in~ ('Change user password', 'Reset user password', 'Change password (self-service)',  'Reset password (by admin)', 'Reset password (self-service)', '4724', '4723')",
+                                        "summarize": "summarize MostRecent = max(TimeGenerated), Count = count() by OperationName",
+                                        "project": "project Title = 'Account Password Resets', MostRecent, Count",
+                                        "linkColumnsDefinitions": null
+                                    },
+                                    {
+                                        "filter": "where OperationName in~ ('Blocked from self-service password reset', '4740')",
+                                        "summarize": "summarize MostRecent = max(TimeGenerated), Count = count() by OperationName",
+                                        "project": "project Title = 'Account Disabled by Policy', MostRecent, Count",
+                                        "linkColumnsDefinitions": null
+                                    },
+                                    {
+                                        "filter": "where OperationName  == '4725' or (OperationName  =~ 'Update user' and DisableUser =~ 'True')",
+                                        "summarize": "summarize MostRecent = max(TimeGenerated), Count = count() by OperationName",
+                                        "project": "project Title = 'Account Disabled by Admin', MostRecent, Count",
+                                        "linkColumnsDefinitions": null
+                                    },
+                                    {
+                                        "filter": "where OperationName in~ ('Add user', '4720')",
+                                        "summarize": "summarize MostRecent = max(TimeGenerated), Count = count() by OperationName",
+                                        "project": "project Title = 'Account Created', MostRecent, Count",
+                                        "linkColumnsDefinitions": null
+                                    },
+                                    {
+                                        "filter": "where OperationName in~ ('Delete user', '4726')",
+                                        "summarize": "summarize MostRecent = max(TimeGenerated), Count = count() by OperationName",
+                                        "project": "project Title = 'Account Deleted', MostRecent, Count",
+                                        "linkColumnsDefinitions": null
+                                    }
+                                ]
+                            },
+                            "chartQuery": {
+                                "title": "User actions by type",
+                                "dataSets": [
+                                    {
+                                        "query": "where OperationName in~ ('Change user password', 'Reset user password', 'Change password (self-service)',  'Reset password (by admin)', 'Reset password (self-service)', '4724', '4723') or (OperationName  =~ 'Update user' and DisableUser =~ 'True') | summarize count() by OperationName",
+                                        "xColumnName": "OperationName",
+                                        "yColumnName": "Count",
+                                        "legendColumnName": "OperationName"
+                                    }
+                                ],
+                                "type": "BarChart"
+                            },
+                            "additionalQuery": {
+                                "text": "See All Account Activity",
+                                "query": "project TimeGenerated, UserPrincipalName, Account_Name, OperationName, Activity, DisableUser, TargetSid, AADUserId, InitiatedBy, AADTenantId, AccountType, Computer, SubjectAccount, SubjectUserSid, EventData"
+                            },
+                            "displayName": "Account Actions",
+                            "description": "Provides the count of actions taken on the specified account. Specifically the number of password reset attempts, the number of password changes, the number of times the account was locked out either by policy or an admin, and the number of times the account was created or deleted..\n",
+                            "type": "KQL",
+                            "provider": "Sentinel",
+                            "defaultTimeRange": {
+                                "beforeRange": "7d",
+                                "afterRange": "7d"
+                            },
+                            "baseQuery": "let GetAccountActions = (v_Account_Name:string, v_Account_UPNSuffix:string, v_Account_NTDomain:string, v_Account_AADUserId:string, v_Account_SID:string){\nAuditLogs\n| where OperationName in~ ('Delete user', 'Change user password', 'Reset user password', 'Change password (self-service)',  'Reset password (by admin)', 'Reset password (self-service)','Update user')\n| extend UserPrincipalName = tostring(TargetResources[0].userPrincipalName)\n| extend Account_Name = tostring(split(UserPrincipalName, '@')[0])\n| extend Account_UPNSuffix = tostring(split(UserPrincipalName, '@')[1])\n| extend Action = tostring(parse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[0])))\n| extend ModifiedProperty = parse_json(Action).displayName\n| extend ModifiedValue = parse_json(Action).newValue\n| extend AADUserId = tostring(TargetResources[0].id)\n| extend DisableUser = iif(ModifiedProperty =~ 'AccountEnabled' and ModifiedValue =~ '[false]', 'True', 'False')\n| union isfuzzy=true (SecurityEvent\n| where EventID in (4726, 4740, 4720, 4725, 4724, 4723)\n| extend OperationName = tostring(EventID)\n| where AccountType =~ \"user\" or isempty(AccountType)\n| project-rename Account_Name = TargetUserName, Account_NTDomain = TargetDomainName)\n| extend p_Account_Name = case(\n// Handles mixed use scenario of NTDomain\\AccountName@UPNSuffix\nv_Account_Name has '@' and v_Account_Name has '\\\\', tostring(split(tostring(split(v_Account_Name, '\\\\')[1]),'@')[0]),\nv_Account_Name has '@', tostring(split(v_Account_Name, '@')[0]),\nv_Account_Name has '\\\\', tostring(split(v_Account_Name, '\\\\')[1]),\nv_Account_Name\n)\n| extend p_Account_UPNSuffix = case(\nv_Account_UPNSuffix has '@', tostring(split(v_Account_UPNSuffix, '@')[1]),\nv_Account_UPNSuffix has '\\\\', tostring(split(v_Account_UPNSuffix, '\\\\')[0]),\nv_Account_UPNSuffix\n)\n| extend p_Account_NTDomain = case(\nv_Account_NTDomain has '\\\\', tostring(split(v_Account_NTDomain, '\\\\')[0]),\n// Handles UPN scenario of AccountName@UPNSuffix to pull potential NTDomain from\nv_Account_NTDomain has '@', tostring(split(tostring(split(v_Account_NTDomain, '@')[1]),'.')[0]),\nv_Account_NTDomain\n)\n| where (Account_Name =~ p_Account_Name and (Account_UPNSuffix =~ p_Account_UPNSuffix or Account_NTDomain =~ p_Account_NTDomain)) or AADUserId =~ v_Account_AADUserId or TargetSid =~ v_Account_SID\n};\nGetAccountActions('UserName', '', '', '', '')\n"
+                        }
+                    },
+                    {
+                        "id": "/subscriptions/bd794837-4d29-4647-9105-6339bfdb4e6a/resourceGroups/mms-eus/providers/Microsoft.OperationalInsights/workspaces/avdvirint/providers/Microsoft.SecurityInsights/queries/5a70a68d-25d4-4012-b73e-4f302a16c06a",
+                        "name": "5a70a68d-25d4-4012-b73e-4f302a16c06a",
+                        "type": "Microsoft.SecurityInsights/queries",
+                        "kind": "Insights",
+                        "properties": {
+                            "tableQuery": {
+                                "columnsDefinitions": [
+                                    {
+                                        "header": "Cleared Event Log",
+                                        "outputType": "String",
+                                        "supportDeepLink": false
+                                    },
+                                    {
+                                        "header": "Times Cleared",
+                                        "outputType": "Number",
+                                        "supportDeepLink": false
+                                    },
+                                    {
+                                        "header": "Host Count",
+                                        "outputType": "Number",
+                                        "supportDeepLink": false
+                                    }
+                                ],
+                                "queriesDefinitions": [
+                                    {
+                                        "filter": "where ClearedLog =~ 'SecurityEvent'",
+                                        "summarize": "summarize HostCount = dcount(Computer), EventCount = count() by ClearedLog",
+                                        "project": "project Title = ClearedLog, EventCount, HostCount",
+                                        "linkColumnsDefinitions": null
+                                    },
+                                    {
+                                        "filter": "where ClearedLog !~ 'SecurityEvent'",
+                                        "summarize": "summarize HostCount = dcount(Computer), EventCount = count() by ClearedLog",
+                                        "project": "project Title = ClearedLog, EventCount, HostCount",
+                                        "linkColumnsDefinitions": null
+                                    }
+                                ]
+                            },
+                            "chartQuery": {
+                                "title": "Cleared over time",
+                                "dataSets": [
+                                    {
+                                        "query": "summarize EventCount = count() by bin(TimeGenerated, 1d) | extend Legend = 'EventCount'",
+                                        "xColumnName": "TimeGenerated",
+                                        "yColumnName": "EventCount",
+                                        "legendColumnName": "Legend"
+                                    },
+                                    {
+                                        "query": "summarize HostCount = dcount(Computer) by bin(TimeGenerated, 1d) | extend Legend = 'HostCount'",
+                                        "xColumnName": "TimeGenerated",
+                                        "yColumnName": "HostCount",
+                                        "legendColumnName": "Legend"
+                                    }
+                                ],
+                                "type": "LineChart"
+                            },
+                            "additionalQuery": {
+                                "text": "See All Log Clear Activity",
+                                "query": "project TimeGenerated, Computer, EventID, Account_Name, SubjectUserSid, SubjectLogonId, Account_NTDomain, SourceComputerId, EventOriginId, _ResourceId, ClearedLog"
+                            },
+                            "displayName": "User Cleared Logs",
+                            "description": "Provides the datetime & count of number of times the event logs were cleared\nby the user.\n",
+                            "type": "KQL",
+                            "provider": "Sentinel",
+                            "defaultTimeRange": {
+                                "beforeRange": "7d",
+                                "afterRange": "7d"
+                            },
+                            "baseQuery": "let UserClearedEventLog = (v_Account_Name:string, v_Account_NTDomain:string, v_Account_SID:string){\nSecurityEvent\n// 1102 - This event generates every time Windows Security audit log was cleared\n| where EventID == 1102 and EventSourceName =~ 'Microsoft-Windows-Eventlog'\n| parse EventData with * 'SubjectUserName>' SubjectUserName '<' *\n| parse EventData with * 'SubjectUserSid>' SubjectUserSid '<' * \n| parse EventData with * 'SubjectLogonId>' SubjectLogonId '<' * \n| parse EventData with * 'SubjectDomainName>' SubjectDomainName '<' * \n| extend ClearedLog = Type\n| project-rename Account_Name = SubjectUserName, Account_NTDomain = SubjectDomainName\n| union isfuzzy=true \n( Event\n// 104 - This event generates every time Windows Event log was cleared\n| where EventID == 104 and Source == \"Microsoft-Windows-Eventlog\"\n| parse EventData with * 'SubjectUserName>' SubjectUserName '<' *\n| parse EventData with * 'SubjectUserSid>' SubjectUserSid '<' * \n| parse EventData with * 'SubjectLogonId>' SubjectLogonId '<' * \n| parse EventData with * 'SubjectDomainName>' SubjectDomainName '<' * \n| parse RenderedDescription with * 'The' ClearedLog 'log' *\n| project-rename Account_Name = SubjectUserName, Account_NTDomain = SubjectDomainName\n)\n| project TimeGenerated, Computer, EventID, Account_Name, SubjectUserSid, SubjectLogonId, Account_NTDomain, SourceComputerId, \nEventOriginId, _ResourceId, ClearedLog \n| extend p_Account_Name = case(\n// Handles mixed use scenario of NTDomain\\AccountName@UPNSuffix\nv_Account_Name has '@' and v_Account_Name has '\\\\', tostring(split(tostring(split(v_Account_Name, '\\\\')[1]),'@')[0]),\nv_Account_Name has '@', tostring(split(v_Account_Name, '@')[0]),\nv_Account_Name has '\\\\', tostring(split(v_Account_Name, '\\\\')[1]),\nv_Account_Name\n)\n| extend p_Account_NTDomain = case(\nv_Account_NTDomain has '\\\\', tostring(split(v_Account_NTDomain, '\\\\')[0]),\n// Handles UPN scenario of AccountName@UPNSuffix to pull potential NTDomain from\nv_Account_NTDomain has '@', tostring(split(tostring(split(v_Account_NTDomain, '@')[1]),'.')[0]),\nv_Account_NTDomain\n)\n| where (Account_Name =~ p_Account_Name and Account_NTDomain =~ p_Account_NTDomain) or SubjectUserSid =~ v_Account_SID\n};\nUserClearedEventLog('UserName', '', '')\n"
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
